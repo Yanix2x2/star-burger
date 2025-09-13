@@ -4,13 +4,20 @@ from django.templatetags.static import static
 from django.utils.html import format_html
 
 from .models import Product
+from .models import OrderedProduct
 from .models import ProductCategory
 from .models import Restaurant
 from .models import RestaurantMenuItem
+from .models import Order
 
 
 class RestaurantMenuItemInline(admin.TabularInline):
     model = RestaurantMenuItem
+    extra = 0
+
+
+class ProductInline(admin.TabularInline):
+    model = OrderedProduct
     extra = 0
 
 
@@ -101,6 +108,8 @@ class ProductAdmin(admin.ModelAdmin):
     get_image_list_preview.short_description = 'превью'
 
 
-@admin.register(ProductCategory)
-class ProductAdmin(admin.ModelAdmin):
-    pass
+@admin.register(Order)
+class OrderAdmin(admin.ModelAdmin):
+    list_display = ['firstname', 'address', 'restaurant',]
+
+    inlines = [ProductInline]
