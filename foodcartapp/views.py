@@ -64,44 +64,44 @@ def product_list_api(request):
 
 @api_view(['POST'])
 def register_order(request):
-    print('У-ля-ля')
-
     required_fields = ['products', 'firstname', 'lastname', 'phonenumber', 'address']
-    for field in required_fields:
-        if field not in request.data:
-            return Response({
-                'error': f'Обязательное поле отсутствует: {field}'
-            }, status=status.HTTP_400_BAD_REQUEST)
+    
+    missing_fields = [field for field in required_fields if field not in request.data]
+    if missing_fields:
+        error_message = f"{', '.join(missing_fields)}: Обязательное поле."
+        return Response({'error': error_message}, status=status.HTTP_400_BAD_REQUEST)
 
+    empty_fields = [field for field in required_fields if request.data.get(field) in (None, '')]
+    if empty_fields:
+        error_message = f"{', '.join(empty_fields)}: Это поле не может быть пустым."
+        return Response({'error': error_message}, status=status.HTTP_400_BAD_REQUEST)
+
+    string_fields = ['firstname', 'lastname', 'address']
+    for field in string_fields:
+        if field in request.data and not isinstance(request.data[field], str):
+            return Response({
+                'error': f'{field}: Ожидалась строка, но был получен {type(request.data[field]).__name__}.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+    
     try:
         phone_number = request.data['phonenumber']
         parsed_number = phonenumbers.parse(phone_number, 'RU')
         if not phonenumbers.is_valid_number(parsed_number):
-            return Response({
-                'error': 'Неверный формат номера телефона'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Неверный формат номера телефона'}, status=status.HTTP_400_BAD_REQUEST)
     except phonenumbers.NumberParseException:
-        return Response({
-            'error': 'Неверный формат номера телефона'
-        })
-
+        return Response({'error': 'Неверный формат номера телефона'}, status=status.HTTP_400_BAD_REQUEST)
+    
     products = request.data['products']
-
-    if products is None:
-        return Response({
-            'error': 'products: Это поле не может быть пустым.'
-        }, status=status.HTTP_400_BAD_REQUEST)
-
+    
     if not isinstance(products, list):
-        received_type = type(products).__name__
         return Response({
-            'error': f'products: Ожидался list со значениями, но был получен "{received_type}".'
+            'error': f'products: Ожидался list, но был получен "{type(products).__name__}".'
         }, status=status.HTTP_400_BAD_REQUEST)
     
-    if len(products) == 0:
-        return Response({
-            'error': 'products: Этот список не может быть пустым.'
-        }, status=status.HTTP_400_BAD_REQUEST)
+    if not products:
+        return Response({'error': 'products: Этот список не может быть пустым.'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    product_ids = []
     
     for index, product in enumerate(products):
         if not isinstance(product, dict):
@@ -112,16 +112,33 @@ def register_order(request):
         if 'product' not in product:
             return Response({
                 'error': f'products[{index}]: Отсутствует обязательное поле "product".'
-            })
+            }, status=status.HTTP_400_BAD_REQUEST)
         
         if 'quantity' not in product:
             return Response({
                 'error': f'products[{index}]: Отсутствует обязательное поле "quantity".'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         if not isinstance(product['quantity'], int) or product['quantity'] <= 0:
             return Response({
                 'error': f'products[{index}]: quantity должно быть положительным целым числом.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not isinstance(product['product'], int):
+            return Response({
+                'error': f'products[{index}]: product должен быть целым числом.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        product_ids.append(product['product'])
+    
+    if product_ids:
+        existing_products = Product.objects.filter(id__in=product_ids).values_list('id', flat=True)
+        non_existing_products = set(product_ids) - set(existing_products)
+        
+        if non_existing_products:
+            non_existing_list = sorted(list(non_existing_products))
+            return Response({
+                'error': f'products: Недопустимый первичный ключ "{non_existing_list[0]}" - продукт не существует.'
             }, status=status.HTTP_400_BAD_REQUEST)
 
     order_form = request.data
@@ -141,9 +158,4 @@ def register_order(request):
             order=order
         )
 
-    return Response({'order done': model_to_dict(order, exclude=['phonenumber'])})
-
-    # except ValueError:
-    #     return JsonResponse({
-    #         'error': 'Оу, май',
-    #     })
+    return Response({'success': model_to_dict(order, exclude=['phonenumber'])})
