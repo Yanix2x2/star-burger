@@ -126,12 +126,20 @@ class RestaurantMenuItem(models.Model):
 
 
 class Order(models.Model):
-    # restaurant = models.ForeignKey(
-    #     Restaurant,
-    #     on_delete=models.PROTECT,
-    #     related_name="restaurants",
-    #     verbose_name="Ресторан",
-    # )
+    STATUS = {
+        'new': 'Необработан',
+        'collect': 'Собирается',
+        'delivery': 'У курьера',
+        'done': 'Выполнен',
+        'cancel': 'Отменен',
+    }
+    status = models.CharField(
+        "Статус",
+        max_length=20,
+        choices=list(STATUS.items()),
+        default='new',
+        db_index=True
+    )
     firstname = models.CharField("Имя", max_length=20)
     lastname = models.CharField("Фамилия", max_length=20)
     phonenumber = PhoneNumberField("Телефон", db_index=True)
