@@ -142,7 +142,7 @@ class Order(models.Model):
         verbose_name_plural = "Заказы"
 
     def __str__(self):
-        return f'для {self.firstname}'
+        return f'Для {self.firstname}'
 
 
 class OrderedProduct(models.Model):
@@ -159,3 +159,13 @@ class OrderedProduct(models.Model):
         verbose_name="Продукты"
     )
     quantity = models.IntegerField("Количество")
+
+    price = models.DecimalField(
+        'Цена на момент заказа',
+        max_digits=8,
+        decimal_places=2,
+        validators=[MinValueValidator(0)]
+    )
+
+    def __str__(self):
+        return f'{self.product.name} x {self.quantity}'
