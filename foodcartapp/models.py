@@ -144,6 +144,7 @@ class Order(models.Model):
     lastname = models.CharField("Фамилия", max_length=20)
     phonenumber = PhoneNumberField("Телефон", db_index=True)
     address = models.CharField("Адрес", max_length=80)
+    comment = models.TextField("Комментарий", blank=True)
 
     class Meta:
         verbose_name = "Заказ"
