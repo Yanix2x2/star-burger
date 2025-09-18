@@ -98,5 +98,6 @@ def view_orders(request):
     ).prefetch_related('products__product')
     print(orders)
     return render(request, template_name='order_items.html', context={
-        'order_items': orders
+        'order_items': orders, 
+        'current_url': request.build_absolute_uri()
     })
