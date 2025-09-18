@@ -4,7 +4,7 @@ from django.forms.models import model_to_dict
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from .serializers import OrderSerializer
-# from rest_framework import status
+from rest_framework import status
 # import phonenumbers
 
 
@@ -65,23 +65,9 @@ def product_list_api(request):
 
 @api_view(['POST'])
 def register_order(request):
-    order_form = request.data
-    serialized_order = OrderSerializer(data=order_form)
-    serialized_order.is_valid(raise_exception=True)
-
-    order = Order.objects.create(
-        firstname=order_form.get('firstname'),
-        lastname=order_form.get('lastname'),
-        phonenumber=order_form.get('phonenumber'),
-        address=order_form.get('address'),
-        restaurant=Restaurant.objects.get(id=1),
-    )
-
-    for product in order_form.get('products'):
-        OrderedProduct.objects.create(
-            product_id=product.get('product'),
-            quantity=product.get('quantity'),
-            order=order
-        )
-
-    return Response({'success': model_to_dict(order, exclude=['phonenumber'])})
+    serializer = OrderSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    validated_data = serializer.validated_data
+    print(validated_data)
+    serializer.save()
+    return Response(serializer.data, status=status.HTTP_201_CREATED)

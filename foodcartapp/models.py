@@ -126,12 +126,12 @@ class RestaurantMenuItem(models.Model):
 
 
 class Order(models.Model):
-    restaurant = models.ForeignKey(
-        Restaurant,
-        on_delete=models.PROTECT,
-        related_name="restaurants",
-        verbose_name="Ресторан",
-    )
+    # restaurant = models.ForeignKey(
+    #     Restaurant,
+    #     on_delete=models.PROTECT,
+    #     related_name="restaurants",
+    #     verbose_name="Ресторан",
+    # )
     firstname = models.CharField("Имя", max_length=20)
     lastname = models.CharField("Фамилия", max_length=20)
     phonenumber = PhoneNumberField("Телефон", db_index=True)
@@ -142,7 +142,7 @@ class Order(models.Model):
         verbose_name_plural = "Заказы"
 
     def __str__(self):
-        return f'{self.restaurant.name} для {self.firstname}'
+        return f'для {self.firstname}'
 
 
 class OrderedProduct(models.Model):
