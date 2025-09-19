@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 from django.core.validators import MinValueValidator
 
 from phonenumber_field.modelfields import PhoneNumberField
@@ -140,11 +141,25 @@ class Order(models.Model):
         default='new',
         db_index=True
     )
+    PAYMENT = {
+        'cash': 'Наличными',
+        'card': 'По карте',
+    }
+    payment = models.CharField(
+        "Оплата",
+        max_length=10,
+        choices=list(PAYMENT.items()),
+        default='cash',
+        db_index=True
+    )
     firstname = models.CharField("Имя", max_length=20)
     lastname = models.CharField("Фамилия", max_length=20)
     phonenumber = PhoneNumberField("Телефон", db_index=True)
     address = models.CharField("Адрес", max_length=80)
     comment = models.TextField("Комментарий", blank=True)
+    created_at = models.DateTimeField("Создано", default=timezone.now)
+    called_at = models.DateTimeField("Принято", blank=True, null=True)
+    delivered_at = models.DateTimeField("Доставлено", blank=True, null=True)
 
     class Meta:
         verbose_name = "Заказ"
