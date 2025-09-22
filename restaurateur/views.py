@@ -3,7 +3,6 @@ from django.shortcuts import redirect, render
 from django.views import View
 from django.urls import reverse_lazy
 from django.contrib.auth.decorators import user_passes_test
-from django.db.models import F, Sum
 
 from django.contrib.auth import authenticate, login
 from django.contrib.auth import views as auth_views
@@ -93,11 +92,9 @@ def view_restaurants(request):
 
 @user_passes_test(is_manager, login_url='restaurateur:login')
 def view_orders(request):
-    orders = Order.objects.annotate(
-        total_cost=Sum(F('products__quantity') * F('products__price'))
-    ).prefetch_related('products__product')
-    print(orders)
-    return render(request, template_name='order_items.html', context={
-        'order_items': orders, 
-        'current_url': request.build_absolute_uri()
+    orders = Order.objects.get_total_cost().prefetch_related('products__product')
+
+    return render(request, 'order_items.html', {
+        'order_items': orders,
+        'current_url': request.build_absolute_uri(),
     })

@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import F, Sum
 from django.utils import timezone
 from django.core.validators import MinValueValidator
 
@@ -126,6 +127,13 @@ class RestaurantMenuItem(models.Model):
         return f"{self.restaurant.name} - {self.product.name}"
 
 
+class OrderQuerySet(models.QuerySet):
+    def get_total_cost(self):
+        return self.annotate(
+            total_cost=Sum(F('products__quantity') * F('products__price'))
+        ).prefetch_related('products__product')
+
+
 class Order(models.Model):
     STATUS = {
         'new': 'Необработан',
@@ -152,6 +160,14 @@ class Order(models.Model):
         default='cash',
         db_index=True
     )
+    restaurant = models.ForeignKey(
+        Restaurant,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='Ресторан',
+        related_name='orders'
+    )
     firstname = models.CharField("Имя", max_length=20)
     lastname = models.CharField("Фамилия", max_length=20)
     phonenumber = PhoneNumberField("Телефон", db_index=True)
@@ -161,9 +177,25 @@ class Order(models.Model):
     called_at = models.DateTimeField("Принято", blank=True, null=True)
     delivered_at = models.DateTimeField("Доставлено", blank=True, null=True)
 
+    objects = OrderQuerySet.as_manager()
+
     class Meta:
         verbose_name = "Заказ"
         verbose_name_plural = "Заказы"
+
+    def get_available_restaurants(self):
+        order_products = self.products.values_list('product_id', flat=True).distinct()
+
+        if not order_products.exists():
+            return Restaurant.objects.none()
+
+        restaurants = Restaurant.objects.all()
+        for product_id in order_products:
+            restaurants = restaurants.filter(
+                menu_items__product_id=product_id,
+                menu_items__availability=True
+            )
+        return restaurants.distinct()
 
     def __str__(self):
         return f'Для {self.firstname}'

@@ -3,6 +3,7 @@ from django.shortcuts import redirect
 from django.shortcuts import reverse
 from django.templatetags.static import static
 from django.utils.html import format_html
+from django.utils import timezone
 
 from .models import Product
 from .models import OrderedProduct
@@ -111,9 +112,18 @@ class ProductAdmin(admin.ModelAdmin):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ['firstname', 'address',]
+    list_display = ("id", "firstname", "lastname", "status", "restaurant", "created_at")
+    readonly_fields = ("show_available_restaurants",)
 
-    inlines = [ProductInline]
+    def save_model(self, request, obj, form, change):
+        if change and 'restaurant' in form.changed_data:
+            if obj.restaurant is not None and obj.status == 'new':
+                obj.status = 'collect'
+
+            if not obj.called_at:
+                obj.called_at = timezone.now()
+        
+        super().save_model(request, obj, form, change)
 
     def response_change(self, request, obj):
         next_url = request.GET.get('next')
@@ -121,3 +131,21 @@ class OrderAdmin(admin.ModelAdmin):
             return redirect(next_url, permanent=False)
 
         return super().response_change(request, obj)
+
+    def show_available_restaurants(self, obj):
+        restaurants = obj.get_available_restaurants()
+        if not restaurants.exists():
+            return "Нет доступных ресторанов"
+        return ", ".join(r.name for r in restaurants)
+    show_available_restaurants.short_description = "Ресторан"
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "restaurant":
+            order_id = request.resolver_match.kwargs.get("object_id")
+            if order_id:
+                try:
+                    order = Order.objects.get(pk=order_id)
+                    kwargs["queryset"] = order.get_available_restaurants()
+                except Order.DoesNotExist:
+                    pass
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
