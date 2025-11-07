@@ -184,6 +184,8 @@ class Order(models.Model):
         verbose_name_plural = "Заказы"
 
     def get_available_restaurants(self):
+        from .utils import get_distance
+        
         order_products = self.products.values_list('product_id', flat=True).distinct()
 
         if not order_products.exists():
@@ -195,7 +197,15 @@ class Order(models.Model):
                 menu_items__product_id=product_id,
                 menu_items__availability=True
             )
-        return restaurants.distinct()
+
+        restaurants = restaurants.distinct()
+
+        restaurants_with_distance = []
+        for restaurant in restaurants:
+            distance = get_distance(self, restaurant)
+            restaurants_with_distance.append((restaurant, distance))
+    
+        return sorted(restaurants_with_distance, key=lambda x: x[1])
 
     def __str__(self):
         return f'Для {self.firstname}'
@@ -225,3 +235,37 @@ class OrderedProduct(models.Model):
 
     def __str__(self):
         return f'{self.product.name} x {self.quantity}'
+
+
+class AddressPoint(models.Model):
+    address = models.CharField(
+        'адрес', 
+        max_length=100, 
+        db_index=True,
+        unique=True
+    )
+    latitude = models.DecimalField(
+        'широта',
+        max_digits=9, 
+        decimal_places=6, 
+        null=True,
+        blank=True
+    )
+    longitude = models.DecimalField(
+        'долгота',
+        max_digits=9, 
+        decimal_places=6, 
+        null=True,
+        blank=True
+    )
+    registered_at = models.DateTimeField(
+        'дата и время регистрации',
+        default=timezone.now
+    )
+
+    class Meta:
+        verbose_name = "Координаты адреса"
+        verbose_name_plural = "Координаты адресов"
+    
+    def __str__(self):
+        return self.address

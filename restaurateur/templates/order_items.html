@@ -40,8 +40,8 @@
             Заказ готовится в {{ item.restaurant.name }}
           {% else %}
             Может быть приготовлен в:
-            {% for restaurant in item.get_available_restaurants %}
-              <li>{{ restaurant.name }}</li>
+            {% for restaurant, distance in item.get_available_restaurants %}
+              <li>{{ restaurant.name }} - {{distance}}</li>
             {% empty %}
               <li>Нет доступных ресторанов</li>
             {% endfor %}

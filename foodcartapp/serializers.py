@@ -17,7 +17,6 @@ class OrderedProductSerializer(serializers.ModelSerializer):
 
 
 class OrderSerializer(serializers.ModelSerializer):
-    # restaurant = CharField()
     products = OrderedProductSerializer(many=True, allow_empty=False)
     firstname = CharField()
     lastname = CharField()

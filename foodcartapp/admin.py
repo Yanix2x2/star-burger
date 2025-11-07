@@ -11,6 +11,7 @@ from .models import ProductCategory
 from .models import Restaurant
 from .models import RestaurantMenuItem
 from .models import Order
+from .models import AddressPoint
 
 
 class RestaurantMenuItemInline(admin.TabularInline):
@@ -136,8 +137,16 @@ class OrderAdmin(admin.ModelAdmin):
         restaurants = obj.get_available_restaurants()
         if not restaurants.exists():
             return "Нет доступных ресторанов"
-        return ", ".join(r.name for r in restaurants)
-    show_available_restaurants.short_description = "Ресторан"
+    #     return ", ".join(r.name for r in restaurants)
+    # show_available_restaurants.short_description = "Ресторан"
+        result = []
+        for restaurant, distance in restaurants:
+            if distance is not None:
+                result.append(f"{restaurant.name} ({distance:.1f} км)")
+            else:
+                result.append(f"{restaurant.name} (расчет расстояния...)")
+        return ", ".join(result)
+    show_available_restaurants.short_description = "Доступные рестораны (с расстоянием)"
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "restaurant":
@@ -145,7 +154,18 @@ class OrderAdmin(admin.ModelAdmin):
             if order_id:
                 try:
                     order = Order.objects.get(pk=order_id)
-                    kwargs["queryset"] = order.get_available_restaurants()
+        #             kwargs["queryset"] = order.get_available_restaurants()
+        #         except Order.DoesNotExist:
+        #             pass
+        # return super().formfield_for_foreignkey(db_field, request, **kwargs)
+                    restaurants_with_distance = order.get_available_restaurants()
+                    restaurant_ids = [restaurant.id for restaurant, distance in restaurants_with_distance]
+                    kwargs["queryset"] = Restaurant.objects.filter(id__in=restaurant_ids)
                 except Order.DoesNotExist:
                     pass
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
+@admin.register(AddressPoint)
+class AddressPoint(admin.ModelAdmin):
+    list_display = ("address", "latitude", "longitude", "registered_at")

@@ -1,14 +1,11 @@
 from django.http import JsonResponse
 from django.templatetags.static import static
-from django.forms.models import model_to_dict
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .serializers import OrderSerializer
 from rest_framework import status
-# import phonenumbers
 
-
-from .models import Product, Order, OrderedProduct, Restaurant
+from .serializers import OrderSerializer
+from .models import Product
 
 
 def banners_list_api(request):
