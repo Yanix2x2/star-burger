@@ -4,6 +4,7 @@ from django.utils import timezone
 from django.core.validators import MinValueValidator
 
 from phonenumber_field.modelfields import PhoneNumberField
+from validators import validate_even
 
 
 class Restaurant(models.Model):
@@ -157,7 +158,6 @@ class Order(models.Model):
         "Оплата",
         max_length=10,
         choices=list(PAYMENT.items()),
-        default='cash',
         db_index=True
     )
     restaurant = models.ForeignKey(
@@ -173,9 +173,9 @@ class Order(models.Model):
     phonenumber = PhoneNumberField("Телефон", db_index=True)
     address = models.CharField("Адрес", max_length=80)
     comment = models.TextField("Комментарий", blank=True)
-    created_at = models.DateTimeField("Создано", default=timezone.now)
-    called_at = models.DateTimeField("Принято", blank=True, null=True)
-    delivered_at = models.DateTimeField("Доставлено", blank=True, null=True)
+    created_at = models.DateTimeField("Создано", default=timezone.now, db_index=True)
+    called_at = models.DateTimeField("Принято", blank=True, null=True, db_index=True)
+    delivered_at = models.DateTimeField("Доставлено", blank=True, null=True, db_index=True)
 
     objects = OrderQuerySet.as_manager()
 
@@ -224,7 +224,7 @@ class OrderedProduct(models.Model):
         related_name="ordered_products",
         verbose_name="Продукты"
     )
-    quantity = models.IntegerField("Количество")
+    quantity = models.IntegerField("Количество", validators=[validate_even])
 
     price = models.DecimalField(
         'Цена на момент заказа',
@@ -235,37 +235,3 @@ class OrderedProduct(models.Model):
 
     def __str__(self):
         return f'{self.product.name} x {self.quantity}'
-
-
-class AddressPoint(models.Model):
-    address = models.CharField(
-        'адрес', 
-        max_length=100, 
-        db_index=True,
-        unique=True
-    )
-    latitude = models.DecimalField(
-        'широта',
-        max_digits=9, 
-        decimal_places=6, 
-        null=True,
-        blank=True
-    )
-    longitude = models.DecimalField(
-        'долгота',
-        max_digits=9, 
-        decimal_places=6, 
-        null=True,
-        blank=True
-    )
-    registered_at = models.DateTimeField(
-        'дата и время регистрации',
-        default=timezone.now
-    )
-
-    class Meta:
-        verbose_name = "Координаты адреса"
-        verbose_name_plural = "Координаты адресов"
-    
-    def __str__(self):
-        return self.address

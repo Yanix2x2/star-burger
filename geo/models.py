@@ -1,11 +1,11 @@
 from django.db import models
 from django.utils import timezone
 
+
 class AddressPoint(models.Model):
     address = models.CharField(
         'адрес', 
         max_length=500, 
-        db_index=True,
         unique=True
     )
     latitude = models.DecimalField(

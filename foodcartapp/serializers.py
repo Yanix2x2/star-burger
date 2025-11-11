@@ -9,7 +9,6 @@ class OrderedProductSerializer(serializers.ModelSerializer):
     product = PrimaryKeyRelatedField(
         queryset=Product.objects.all()
     )
-    quantity = IntegerField(min_value=1)
 
     class Meta:
         model = OrderedProduct
@@ -18,10 +17,7 @@ class OrderedProductSerializer(serializers.ModelSerializer):
 
 class OrderSerializer(serializers.ModelSerializer):
     products = OrderedProductSerializer(many=True, allow_empty=False)
-    firstname = CharField()
-    lastname = CharField()
     phonenumber = PhoneNumberField(region="RU")
-    address = CharField()
 
     class Meta:
         model = Order

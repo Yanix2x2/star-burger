@@ -6,7 +6,6 @@ from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth import authenticate, login
 from django.contrib.auth import views as auth_views
 
-from foodcartapp.utils import get_distance
 from foodcartapp.models import Product, Restaurant, Order
 
 
@@ -59,7 +58,7 @@ class LogoutView(auth_views.LogoutView):
 
 
 def is_manager(user):
-    return user.is_staff  # FIXME replace with specific permission
+    return user.is_staff
 
 
 @user_passes_test(is_manager, login_url='restaurateur:login')
@@ -96,40 +95,3 @@ def view_orders(request):
         'order_items': orders,
         'current_url': request.build_absolute_uri(),
     })
-
-# def view_orders(request):
-#     orders_qs = (
-#         Order.objects
-#         .get_total_cost()
-#         .prefetch_related('products__product', 'restaurant')
-#     )
-
-#     orders = []
-#     for order in orders_qs:
-#         available_restaurants = [
-#             {
-#                 'name': restaurant.name,
-#                 'distance': distance
-#             }
-#             for restaurant, distance in order.get_available_restaurants()
-#         ]
-
-#         orders.append({
-#             'id': order.id,
-#             'status': order.get_status_display(),
-#             'payment': order.get_payment_display(),
-#             'total_cost': getattr(order, 'total_cost', 0),
-#             'firstname': order.firstname,
-#             'lastname': order.lastname,
-#             'phonenumber': str(order.phonenumber),
-#             'address': order.address,
-#             'comment': order.comment,
-#             'restaurant': order.restaurant.name if order.restaurant else None,
-#             'available_restaurants': available_restaurants,
-#         })
-
-#     return render(request, 'order_items.html', {
-#         'order_items': orders,
-#         'current_url': request.build_absolute_uri(),
-#     })
-

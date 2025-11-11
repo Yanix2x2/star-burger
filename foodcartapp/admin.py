@@ -2,12 +2,11 @@ from django.contrib import admin
 from django.shortcuts import redirect
 from django.shortcuts import reverse
 from django.templatetags.static import static
-from django.utils.html import format_html
+from django.utils.html import format_html, url_has_allowed_host_and_scheme
 from django.utils import timezone
 
 from .models import Product
 from .models import OrderedProduct
-from .models import ProductCategory
 from .models import Restaurant
 from .models import RestaurantMenuItem
 from .models import Order
@@ -56,8 +55,6 @@ class ProductAdmin(admin.ModelAdmin):
         'category',
     ]
     search_fields = [
-        # FIXME SQLite can not convert letter case for cyrillic words properly, so search will be buggy.
-        # Migration to PostgreSQL is necessary
         'name',
         'category__name',
     ]
@@ -128,17 +125,18 @@ class OrderAdmin(admin.ModelAdmin):
 
     def response_change(self, request, obj):
         next_url = request.GET.get('next')
-        if next_url:
+        if next_url and url_has_allowed_host_and_scheme(
+            url=next_url,
+            allowed_hosts={request.get_host()},
+            require_https=request.is_secure()
+        ):
             return redirect(next_url, permanent=False)
-
         return super().response_change(request, obj)
 
     def show_available_restaurants(self, obj):
         restaurants = obj.get_available_restaurants()
         if not restaurants.exists():
             return "Нет доступных ресторанов"
-    #     return ", ".join(r.name for r in restaurants)
-    # show_available_restaurants.short_description = "Ресторан"
         result = []
         for restaurant, distance in restaurants:
             if distance is not None:
@@ -154,10 +152,6 @@ class OrderAdmin(admin.ModelAdmin):
             if order_id:
                 try:
                     order = Order.objects.get(pk=order_id)
-        #             kwargs["queryset"] = order.get_available_restaurants()
-        #         except Order.DoesNotExist:
-        #             pass
-        # return super().formfield_for_foreignkey(db_field, request, **kwargs)
                     restaurants_with_distance = order.get_available_restaurants()
                     restaurant_ids = [restaurant.id for restaurant, distance in restaurants_with_distance]
                     kwargs["queryset"] = Restaurant.objects.filter(id__in=restaurant_ids)

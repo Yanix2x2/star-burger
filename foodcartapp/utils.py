@@ -10,7 +10,7 @@ def fetch_coordinates(address):
     base_url = "https://geocode-maps.yandex.ru/1.x"
     params = {
         "geocode": address,
-        "apikey": settings.GEO_KEY,
+        "apikey": settings.YANDEX_API_KEY,
         "format": "json"
     }
     try:
