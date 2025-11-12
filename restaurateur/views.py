@@ -7,6 +7,7 @@ from django.contrib.auth import authenticate, login
 from django.contrib.auth import views as auth_views
 
 from foodcartapp.models import Product, Restaurant, Order
+from foodcartapp.utils import get_available_restaurants_for_orders
 
 
 class Login(forms.Form):
@@ -90,7 +91,14 @@ def view_restaurants(request):
 
 @user_passes_test(is_manager, login_url='restaurateur:login')
 def view_orders(request):
-    orders = Order.objects.get_total_cost().prefetch_related('products__product')
+    orders = (
+        Order.objects
+        .get_total_cost()
+        .prefetch_related('products__product')
+        .with_available_restaurants()
+    )
+    orders = get_available_restaurants_for_orders(orders)
+
     return render(request, 'order_items.html', {
         'order_items': orders,
         'current_url': request.build_absolute_uri(),

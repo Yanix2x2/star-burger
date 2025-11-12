@@ -39,12 +39,23 @@
           {% if item.restaurant %}
             Заказ готовится в {{ item.restaurant.name }}
           {% else %}
-            Может быть приготовлен в:
-            {% for restaurant, distance in item.get_available_restaurants %}
-              <li>{{ restaurant.name }} - {{distance}}</li>
-            {% empty %}
-              <li>Нет доступных ресторанов</li>
-            {% endfor %}
+            {% if item.available_restaurants %}
+              Может быть приготовлен в:
+              <ul>
+                {% for restaurant, distance in item.available_restaurants %}
+                  <li>
+                    {{ restaurant.name }}
+                    {% if distance %}
+                      - {{ distance|floatformat:1 }} км
+                    {% else %}
+                      -
+                    {% endif %}
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              Нет доступных ресторанов
+            {% endif %}
           {% endif %}
         </td>
         <td>

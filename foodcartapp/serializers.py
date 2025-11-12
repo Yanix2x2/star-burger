@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from rest_framework.serializers import CharField, IntegerField, PrimaryKeyRelatedField
+from rest_framework.serializers import PrimaryKeyRelatedField
 from phonenumber_field.modelfields import PhoneNumberField
 from .models import Order, OrderedProduct, Product
 from django.db import transaction

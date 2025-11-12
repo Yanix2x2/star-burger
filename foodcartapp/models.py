@@ -2,9 +2,11 @@ from django.db import models
 from django.db.models import F, Sum
 from django.utils import timezone
 from django.core.validators import MinValueValidator
+from collections import defaultdict
 
 from phonenumber_field.modelfields import PhoneNumberField
-from validators import validate_even
+
+from .validators import validate_positive
 
 
 class Restaurant(models.Model):
@@ -134,6 +136,28 @@ class OrderQuerySet(models.QuerySet):
             total_cost=Sum(F('products__quantity') * F('products__price'))
         ).prefetch_related('products__product')
 
+    def with_available_restaurants(self):
+        menu_items = (
+            RestaurantMenuItem.objects
+            .filter(availability=True)
+            .select_related('restaurant', 'product')
+        )
+        restaurant_menu = defaultdict(set)
+        for item in menu_items:
+            restaurant_menu[item.restaurant].add(item.product_id)
+
+        orders = list(self)
+        for order in orders:
+            order_products = set(order.products.values_list('product_id', flat=True))
+            available_restaurants = [
+                restaurant
+                for restaurant, product_ids in restaurant_menu.items()
+                if order_products.issubset(product_ids)
+            ]
+            order.available_restaurants = available_restaurants
+
+        return orders
+
 
 class Order(models.Model):
     STATUS = {
@@ -183,32 +207,8 @@ class Order(models.Model):
         verbose_name = "Заказ"
         verbose_name_plural = "Заказы"
 
-    def get_available_restaurants(self):
-        from .utils import get_distance
-        
-        order_products = self.products.values_list('product_id', flat=True).distinct()
-
-        if not order_products.exists():
-            return Restaurant.objects.none()
-
-        restaurants = Restaurant.objects.all()
-        for product_id in order_products:
-            restaurants = restaurants.filter(
-                menu_items__product_id=product_id,
-                menu_items__availability=True
-            )
-
-        restaurants = restaurants.distinct()
-
-        restaurants_with_distance = []
-        for restaurant in restaurants:
-            distance = get_distance(self, restaurant)
-            restaurants_with_distance.append((restaurant, distance))
-    
-        return sorted(restaurants_with_distance, key=lambda x: x[1])
-
     def __str__(self):
-        return f'Для {self.firstname}'
+        return f'Заказ #{self.id} для {self.firstname}'
 
 
 class OrderedProduct(models.Model):
@@ -224,7 +224,7 @@ class OrderedProduct(models.Model):
         related_name="ordered_products",
         verbose_name="Продукты"
     )
-    quantity = models.IntegerField("Количество", validators=[validate_even])
+    quantity = models.IntegerField("Количество", validators=[validate_positive])
 
     price = models.DecimalField(
         'Цена на момент заказа',

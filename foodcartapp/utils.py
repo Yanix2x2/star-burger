@@ -2,8 +2,10 @@ import requests
 
 from django.conf import settings
 from requests.exceptions import HTTPError, RequestException
-
+from collections import defaultdict
 from geopy import distance
+
+from .models import RestaurantMenuItem
 
 
 def fetch_coordinates(address):
@@ -26,7 +28,7 @@ def fetch_coordinates(address):
 
 
 def get_address_point(address):
-    from .models import AddressPoint
+    from geo.models import AddressPoint
     address_point, created = AddressPoint.objects.get_or_create(
         address=address
     )
@@ -44,3 +46,35 @@ def get_distance(order, restaurant):
     restaurant_point = get_address_point(restaurant.address)
     distance_between = distance.distance(order_point, restaurant_point).km
     return f'{distance_between:.3f} км'
+
+
+def get_available_restaurants_for_orders(orders):
+    menu_items = (
+        RestaurantMenuItem.objects
+        .filter(availability=True)
+        .select_related('restaurant', 'product')
+    )
+
+    restaurant_menu = defaultdict(set)
+    for item in menu_items:
+        restaurant_menu[item.restaurant].add(item.product_id)
+
+    for order in orders:
+        order_products = set(order.products.values_list('product_id', flat=True))
+        available_restaurants = []
+
+        for restaurant, products in restaurant_menu.items():
+            if order_products.issubset(products):
+                distance = get_distance(order, restaurant)
+                try:
+                    distance = float(str(distance).split()[0])
+                except (TypeError, ValueError, AttributeError):
+                    distance = None
+                available_restaurants.append((restaurant, distance))
+
+        order.available_restaurants = sorted(
+            available_restaurants,
+            key=lambda x: x[1] if x[1] is not None else 9999
+        )
+
+    return orders

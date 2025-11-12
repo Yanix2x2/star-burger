@@ -2,7 +2,8 @@ from django.contrib import admin
 from django.shortcuts import redirect
 from django.shortcuts import reverse
 from django.templatetags.static import static
-from django.utils.html import format_html, url_has_allowed_host_and_scheme
+from django.utils.html import format_html
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 
 from .models import Product
@@ -10,7 +11,8 @@ from .models import OrderedProduct
 from .models import Restaurant
 from .models import RestaurantMenuItem
 from .models import Order
-from .models import AddressPoint
+from geo.models import AddressPoint
+from .utils import get_available_restaurants_for_orders
 
 
 class RestaurantMenuItemInline(admin.TabularInline):
@@ -110,7 +112,11 @@ class ProductAdmin(admin.ModelAdmin):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ("id", "firstname", "lastname", "status", "restaurant", "created_at")
+    list_display = [
+        'id', 'firstname', 'lastname', 'address',
+        'status', 'payment', 'restaurant',
+        'show_available_restaurants',
+    ]
     readonly_fields = ("show_available_restaurants",)
 
     def save_model(self, request, obj, form, change):
@@ -134,16 +140,21 @@ class OrderAdmin(admin.ModelAdmin):
         return super().response_change(request, obj)
 
     def show_available_restaurants(self, obj):
-        restaurants = obj.get_available_restaurants()
-        if not restaurants.exists():
+        orders = get_available_restaurants_for_orders([obj])
+        order = orders[0]
+
+        if not getattr(order, 'available_restaurants', None):
             return "Нет доступных ресторанов"
+
         result = []
-        for restaurant, distance in restaurants:
+        for restaurant, distance in order.available_restaurants:
             if distance is not None:
                 result.append(f"{restaurant.name} ({distance:.1f} км)")
             else:
                 result.append(f"{restaurant.name} (расчет расстояния...)")
-        return ", ".join(result)
+
+        return format_html("<br>".join(result))
+
     show_available_restaurants.short_description = "Доступные рестораны (с расстоянием)"
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
@@ -151,12 +162,36 @@ class OrderAdmin(admin.ModelAdmin):
             order_id = request.resolver_match.kwargs.get("object_id")
             if order_id:
                 try:
-                    order = Order.objects.get(pk=order_id)
-                    restaurants_with_distance = order.get_available_restaurants()
-                    restaurant_ids = [restaurant.id for restaurant, distance in restaurants_with_distance]
+                    from foodcartapp.models import Order, Restaurant, RestaurantMenuItem
+                    from collections import defaultdict
+
+                    order = Order.objects.prefetch_related('products__product').get(pk=order_id)
+
+                    order_product_ids = set(order.products.values_list('product_id', flat=True))
+                    if not order_product_ids:
+                        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+                    menu_items = (
+                        RestaurantMenuItem.objects
+                        .filter(availability=True)
+                        .select_related('restaurant', 'product')
+                    )
+
+                    restaurant_menu = defaultdict(set)
+                    for item in menu_items:
+                        restaurant_menu[item.restaurant].add(item.product_id)
+
+                    restaurant_ids = [
+                        restaurant.id
+                        for restaurant, products in restaurant_menu.items()
+                        if order_product_ids.issubset(products)
+                    ]
+
                     kwargs["queryset"] = Restaurant.objects.filter(id__in=restaurant_ids)
+
                 except Order.DoesNotExist:
                     pass
+
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
